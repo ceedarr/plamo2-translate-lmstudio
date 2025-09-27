@@ -1,6 +1,6 @@
 """plamo2-translate-lmstudio パッケージの公開 API.
 
-`PlamoTranslator` クラスと `translate` ヘルパー関数を提供する。
+`PlamoTranslator` クラスと翻訳ユーティリティ関数を提供する。
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from typing import Optional
 
 from .plamo_2_translate import PLAMO_STOP, PlamoTranslator
 
-__all__ = ["PlamoTranslator", "PLAMO_STOP", "translate"]
+__all__ = ["PlamoTranslator", "PLAMO_STOP", "translate", "translate_ja_en"]
 
 
 def translate(
@@ -49,4 +49,57 @@ def translate(
 		text=text,
 		src_lang=src_lang,
 		tgt_lang=tgt_lang,
+	)
+
+
+def translate_ja_en(
+	text: str,
+	text_lang: str,
+	*,
+	translator: Optional[PlamoTranslator] = None,
+	**translator_kwargs,
+) -> str:
+	"""日本語と英語の双方向翻訳に特化したユーティリティ。
+
+	Parameters
+	----------
+	text:
+		翻訳したい文字列。
+	text_lang:
+		入力テキストの言語。 ``"Japanese"``/``"ja"``/``"jp"`` または ``"English"``/``"en"`` を指定。
+	translator:
+		既存の :class:`PlamoTranslator` インスタンス。
+	**translator_kwargs:
+		`PlamoTranslator` を新規生成する際に用いる追加パラメータ。
+
+	Returns
+	-------
+	str
+		翻訳結果。
+
+	Raises
+	------
+	ValueError
+		``text_lang`` が ``"Japanese"`` / ``"English"`` 以外の場合。
+	"""
+
+	lang_normalized = text_lang.strip().lower()
+	if lang_normalized in {"japanese", "ja", "jp"}:
+		src = "Japanese"
+		tgt = "English"
+	elif lang_normalized in {"english", "en"}:
+		src = "English"
+		tgt = "Japanese"
+	else:
+		raise ValueError(
+			"text_lang must be either 'Japanese'/'ja' or 'English'/'en'. "
+			f"Got: {text_lang!r}"
+		)
+
+	return translate(
+		text,
+		src,
+		tgt,
+		translator=translator,
+		**translator_kwargs,
 	)
