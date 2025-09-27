@@ -1,329 +1,198 @@
 # plamo2-translate-lmstudio
 
-LM Studio の OpenAI 互換 API を利用して `plamo-2-translate` モデルで英⇔日翻訳を行う Python ライブラリです。
+LM Studio の OpenAI 互換 API を利用して `plamo-2-translate` モデル（GGUF）で英⇔日翻訳を行う Python ライブラリです。
 
 
+## 1. 事前準備
 
-## 前提条件（セットアップ）
+| 項目 | 手順 | 備考 |
+| ---- | ---- | ---- |
+| LM Studio | **Developer → Local Server** を **ON**（既定: `http://localhost:1234/v1`） | `arch: plamo2` が表示される最新バージョンを推奨 |
+| モデル | **My Models → Add model** で `mmnga/plamo-2-translate-gguf` を追加。Prompt Template を空にする | 現状Q4_K_Sで実行確認済み、他plamo系モデルでも使えるかは未確認 |
+| Stop Sequence | 任意で `<\|plamo:op\|>` を UI 側にも登録 | [Hugging face plamo モデルカード](https://huggingface.co/pfnet/plamo-2-translate) `Usage` 準拠。本ライブラリは API リクエスト時に自動指定 |
 
-### 1) LM Studio のローカルサーバを有効化
-1. LM Studio を起動  
-2. 左サイドバー **Developer（開発者）** → **Local Server** を **ON**  
-3. 画面に **http://localhost:1234/v1** と表示されることを確認  
-   - （任意）**Developer Logs** を開き、起動ログを見られるようにしておくと実行確認が容易
+### インストール・使用方法
 
-### 2) モデルを追加し、**My Models** から設定を変更
-1. 左サイドバー **My Models** → **Add model**  
-   - **Hugging Face** から検索して **`mmnga/plamo-2-translate-gguf`** を追加   
-   - まずは **Q4_K_S**（軽量・動作確認向け）がおすすめ。安定重視なら **Q5_0 / Q5_K_S**
-2. **My Models** で `plamo-2-translate`（追加したもの）を選択 → **⚙（歯車）** をクリック  
-   - **Prompt Template**：**Custom（カスタム）を選び、内容を空にする**  
-     - ＝ **会話テンプレートを無効化**（“User: … / Assistant: …”等を自動で挿入させない）  
-   - （任意）**Stop sequences** に **`<|plamo:op|>`** を追加  
-     - [Hugging face plamoページ](https://huggingface.co/pfnet/plamo-2-translate) `Usage` 準拠。
-     - 本ライブラリは API 側で `stop=["<|plamo:op|>"]` を毎回付けますが、UIにも入れておくと手動試験が楽。  
-     ※作者はこの設定なしでも正常に翻訳できました。
-
-> **ポイント**：会話テンプレは **My Models でモデル単位**に設定します（Playground側のテンプレとは別）。  
-> 念のため、**新規チャット**で試すのが安全です。
-
-### 3) （推奨）llama.cpp のバージョンを新しめに
-- LM Studio 同梱のエンジン（llama.cpp）が古いと **“`<|plamo:reserved:0x1E|>` が連発”** することがあります。  
-- 起動ログ（Local Server のログ）で **`arch: plamo2`** と出ているか確認してください（出ない場合は LM Studio 更新を検討）。
-
-
-
-## このライブラリがやること
-
-- `plamo-2-translate` は**専用フォーマット**で動かす必要があります：
-```
-
-<|plamo:op|>dataset
-translation
-<|plamo:op|>input lang=English
-(訳したい本文)
-<|plamo:op|>output lang=Japanese
-
-````
-
-本ライブラリはこの書式を**自動で組み立てて送信**します。
-
----
-
-## インストール
-
+(Windows)
 ```bash
 git clone https://github.com/ceedarr/plamo2-translate-lmstudio.git
 cd plamo2-translate-lmstudio
+python -m venv .venv
+.venv/Scripts/activate.bat
 pip install -e .
 ```
 
+`plamo2-translate-lmstudio` フォルダにJupyter Notebookを新規作成してご利用ください。  
+サンプルを `translate_example.ipynb` に示しています。
 
-## 使い方
 
-トップレベルのヘルパー関数（`translate` / `translate_ja_en` / `en2ja` / `ja2en`）は共通して次のキーワードを受け取ります。
 
-- `translator`: 既存の `PlamoTranslator` インスタンスを使い回す場合に指定。
-- `translator_kwargs`: 新しく `PlamoTranslator` を生成するときに渡す初期化パラメータ（`base_url` / `model` / `timeout_sec` など）。
-- それ以外のキーワード（`temperature`, `top_p`, `top_k`, `max_tokens` 等）は翻訳生成パラメータとして `PlamoTranslator.translate` に引き継がれます。
+## 2. 翻訳 API のエントリーポイント
 
-> **NOTE**: 既存インスタンス（`translator` 引数）を渡した場合、同時に `translator_kwargs` を渡すことはできません。初期化済みの設定をそのまま使いたい、というケースでインスタンス引数を使ってください。
+モジュールが提供するトップレベル関数は4つです。いずれも `plamo2_translate_lmstudio` 名前空間から import できます。
 
-### 1. 汎用関数を使った翻訳
+| 関数 | 役割 | 既定の言語方向 |
+| ---- | ---- | ---- |
+| `translate(text, src_lang="English", tgt_lang="Japanese", ...)` | 任意ペアの翻訳 | 指定可（他言語も利用可能） |
+| `translate_ja_en(text_lang, text, ...)` | 日本語/英語の双方向判定つき翻訳 | `text_lang` が `ja/jp` なら日→英、`en` なら英→日 |
+| `en2ja(text, ...)` | 英→日のショートカット | 英→日 |
+| `ja2en(text, ...)` | 日→英のショートカット | 日→英 |
 
-※規定モデル：`mmnga/plamo-2-translate-gguf`  
-メインの利用想定は英→日、日→英ですが、`src_lang` と `tgt_lang` を変えれば他言語も翻訳可能（精度は未検証）。
+内部では `PlamoTranslator` クラスが実際の HTTP 呼び出しを担っています。トップレベル関数は**ラッパー**であり、以下の3つの利用シナリオをサポートします。
+
+
+
+## 3. 利用シナリオ別ガイド
+
+### 3.1 シナリオ1: 「規定のまま使う」（カスタマイズなし）
+
+最も簡単な利用法です。ライブラリ既定の `base_url` や `model` がそのまま使われ、生成パラメータ（temperature など）も初期値を採用します。  
+※`model` には、規定の `mmnga/plamo-2-translate-gguf` が用いられます。
 
 ```python
-from plamo2_translate_lmstudio import translate
+from plamo2_translate_lmstudio import translate, translate_ja_en, en2ja, ja2en
 
-result = translate("Where are you from?", src_lang="English", tgt_lang="Japanese")
-print(result)  # -> どこ出身ですか？ など
+print(translate("Where are you from?"))
+print(translate_ja_en("ja", "週末までに翻訳メモリを更新してください。"))
+print(en2ja("Please share the draft agenda."))
+print(ja2en("明日の会議には参加可能です。"))
 ```
 
-### 2. 英→日、日→英、英⇔日専用関数を使った翻訳
+> **特徴**: パラメータ指定が不要。LM Studio 側の設定のみで動作。
 
-※規定モデル：`mmnga/plamo-2-translate-gguf`  
-```python
-from plamo2_translate_lmstudio import en2ja, ja2en, translate_ja_en
+### 3.2 シナリオ2: 「`PlamoTranslator` をカスタマイズして使う」
 
-result_en2ja = en2ja("I would like to schedule a meeting with you next week.")
-print(result_en2ja)  # -> 来週あなたと会議を予定したいのですが。
+使用モデルを変更したいときなどに使います。  
 
-result_ja2en = ja2en("今日は一日どうでしたか？")
-print(result_ja2en)  # -> How was your day today?
-
-result_mix_ja = translate_ja_en("ja", "週末までに翻訳メモリを最新化してください。")
-print(result_mix_ja)  # -> Please update the translation memory by the weekend.
-
-result_mix_en = translate_ja_en("en", "Could you summarize the customer feedback in Japanese?")
-print(result_mix_en)  # -> 顧客からのフィードバックを日本語で要約していただけますか？
-```
-
-### 3. ループを使った一括翻訳
-
-※規定モデル：`mmnga/plamo-2-translate-gguf`  
-```python
-from plamo2_translate_lmstudio import translate, translate_ja_en
-
-pairs = [
-    ("English", "Japanese", "Could you prepare the architecture review slides?"),
-    ("Japanese", "English", "新しいテストケースをリポジトリに追加しました。"),
-]
-
-for src_lang, tgt_lang, sentence in pairs:
-    output = translate(sentence, src_lang=src_lang, tgt_lang=tgt_lang)
-    print(f"{src_lang} -> {tgt_lang}")
-    print(f"  Original   : {sentence}")
-    print(f"  Translation: {output}\n")
-
-ja_en_samples = [
-    ("ja", "週次ミーティングの議事録を送付しました。"),
-    ("en", "Please double-check the release plan for next week."),
-    ("ja", "来週のリリース手順を確認してください。"),
-    ("en", "The localization glossary has been updated."),
-]
-
-for src_lang, sentence in ja_en_samples:
-    output = translate_ja_en(src_lang, sentence)
-    tgt_lang = "English" if src_lang in ["Japanese", "ja", "jp"] else "Japanese"
-    print(f"{src_lang} -> {tgt_lang}")
-    print(f"  Original   : {sentence}")
-    print(f"  Translation: {output}\n")
-```
-
-### 4. モデルなどを指定して翻訳する
+1. 任意の初期化パラメータ（`base_url`, `model`, `timeout_sec` など）を渡して `PlamoTranslator` をインスタンス化。
+2. そのインスタンスのメソッド（`translate`, `translate_ja_en`, `en2ja`, `ja2en`）を変数に代入。
 
 ```python
 from plamo2_translate_lmstudio import PlamoTranslator
 
 translator = PlamoTranslator(
-	base_url="http://localhost:1234/v1",
-	model="mmnga/plamo-2-translate-gguf", # ここでモデルを指定する
-	timeout_sec=60,
+    base_url="http://localhost:1234/v1",  # エンドポイント変更時
+    model="mmnga/plamo-2-translate-gguf", # ここでモデルを指定する
+    timeout_sec=45,
 )
 
 translate = translator.translate
 translate_ja_en = translator.translate_ja_en
-en2ja = translator.en2ja
-ja2en = translator.ja2en
 
-sample_translate = translate("Please submit the quarterly report.", src_lang="English", tgt_lang="Japanese")
-sample_translate_ja_en = translate_ja_en("ja", "最新の議事録を共有済みですか？")
-sample_en2ja = en2ja("The deployment checklist is complete.")
-sample_ja2en = ja2en("顧客への返信を今日中にお願いします。")
-
-print("translate:", sample_translate)
-print("translate_ja_en:", sample_translate_ja_en)
-print("en2ja:", sample_en2ja)
-print("ja2en:", sample_ja2en)
+print(translate("Deployment steps are documented.", src_lang="English", tgt_lang="Japanese", temperature=0.1))
+print(translate_ja_en("jp", "リリースチェックリストの最新版を共有しましたか？", top_p=0.9))
 ```
 
-### 5. 細かな設定を行いたい場合
+> **特徴**: 初期化パラメータを 1 度だけ設定すれば、その後は自由な組み合わせで生成パラメータを指定可能。長期運用中のセッション再利用にも向く。
+
+### 3.3 シナリオ3: 「カスタマイズされた `translator` を毎回引数へ渡す」
+
+トップレベル関数の `translator` 引数に `PlamoTranslator` を渡す方式です。毎回明示的にインスタンスを指定したい場合に利用します。
 
 ```python
-from plamo2_translate_lmstudio import PlamoTranslator
+from plamo2_translate_lmstudio import translate, PlamoTranslator
 
-translator = PlamoTranslator(
-	base_url="http://localhost:1234/v1",
-	model="mmnga/plamo-2-translate-gguf",
-	timeout_sec=60,
-)
+custom_translator = PlamoTranslator(model="mmnga/plamo-2-translate-gguf", timeout_sec=90)
 
-result = translator.translate(
-    "It was a close game.",
-    src_lang="English",
-    tgt_lang="Japanese",
-    temperature=0.0,     # 0: 毎回同じ回答になる
-    max_tokens=128,
+result = translate(
+    "Could you prepare the metrics dashboard?",
+    translator=custom_translator,
+    temperature=0.2,
 )
 print(result)
 ```
 
-### 6. `translate` / `translate_ja_en` で追加パラメータを調整
-どちらのヘルパー関数でも、生成パラメータや `PlamoTranslator` の初期化キーワードを直接指定できます。
+> **特徴**: 関数呼び出しごとに異なる翻訳器設定を差し替えたい場面に便利。`translator` を渡した場合、`translator_kwargs` は同時指定できません。
+
+
+
+## 4. パラメータの分類と入力先
+
+### 4.1 初期化パラメータ（`base_url`, `model`, `timeout_sec`）
+
+- **シナリオ1**: トップレベル関数に `translator_kwargs={"model": ..., ...}` の形式で渡すと、内部で新しい `PlamoTranslator` が生成されます。渡さなければライブラリ既定値が使われます。
+- **シナリオ2**: `PlamoTranslator(...)` のコンストラクタ引数として 1 度設定し、以降はそのインスタンスを使い回します。トップレベル関数に `translator_kwargs` を渡す必要はありません。
+- **シナリオ3**: 呼び出しごとに `translator=PlamoTranslator(...)` を明示する形で指定します。既存インスタンスを渡す場合は `translator_kwargs` を併用できません。
+
+### 4.2 生成パラメータ（`temperature`, `top_p`, `top_k`, `max_tokens`, `stop` ...）
+
+- **シナリオ1**: `translate(..., temperature=0.1, top_p=0.9, ...)` のようにトップレベル関数へ直接渡せます。
+- **シナリオ2**: インスタンスメソッドを呼ぶ際にキーワードとして渡します（例: `translate(..., top_k=40)`）。
+- **シナリオ3**: トップレベル関数に渡しつつ `translator=` でインスタンスを指定します。
+
+> 代表的な生成パラメータの意味 (作者はこれについて詳しくありません。詳しくは、[LM Studio のドキュメント](https://lmstudio.ai/docs/app/api/endpoints/openai)を参照してください。):
+>
+> - `temperature`: 0.0 に近いと確定的、値を大きくすると多様性が増す。
+> - `top_p`: nucleus sampling の確率質量（0〜1）。
+> - `top_k`: 候補トークン数の上限（0 で無効）。
+> - `max_tokens`: 応答で生成する最大トークン数。
+> - `stop`: 追加のストップシーケンス。 [参照：Hugging face plamo モデルカード](https://huggingface.co/pfnet/plamo-2-translate)
+
+### 4.3 `translator` / `translator_kwargs` の使い分け
+
+- `translator` 引数には、既に作成済みの `PlamoTranslator` インスタンスを渡します。シナリオ3で毎回差し替える場合や、シナリオ2の派生としてメソッドを直接呼びたい場合に利用します。
+- `translator_kwargs` 引数には、`PlamoTranslator` を内部生成してほしいときの初期化キーワード（`base_url` など）を辞書で渡します。トップレベル関数をそのまま使いながら、必要に応じて初期設定だけを一時的に上書きしたい場合に利用します。
+- 上記 2 つを同時に指定することはできません。既存インスタンスを渡す場合は `translator_kwargs` を省略し、新規生成させる場合は `translator` を省略してください。
+
+
+
+## 5. サンプルレシピ
+
+### 5.1 翻訳品質が悪いときの再試行設定
 
 ```python
 from plamo2_translate_lmstudio import translate
 
 result = translate(
-	"Reserved words keep appearing...",
-	top_p=0.95,
-	top_k=50,
-	timeout_sec=45,
+    "Reserved tokens keep appearing...",
+    temperature=0.2,
+    top_p=0.95,
+    top_k=50,
+    max_tokens=256,
 )
 print(result)
 ```
 
-既存インスタンスを使い回す場合は、`translator` を渡しつつ生成パラメータのみ指定します。
+### 5.2 サーバ設定を都度切り替える（シナリオ3）
 
 ```python
 from plamo2_translate_lmstudio import translate, PlamoTranslator
 
-shared_translator = PlamoTranslator(timeout_sec=90)
+primary = PlamoTranslator(base_url="http://localhost:1234/v1")
+backup = PlamoTranslator(base_url="http://localhost:2345/v1")
 
-result = translate(
-    "Could you review the release checklist?",
-    translator=shared_translator,
-    temperature=0.1,
-)
-print(result)
+print(translate("Primary server test", translator=primary))
+print(translate("Backup server test", translator=backup))
 ```
 
-同じ要領で `en2ja` や `ja2en` も利用できます。
+### 5.3 アプリケーション内で共有する（シナリオ2）
 
 ```python
-from plamo2_translate_lmstudio import en2ja, ja2en
+from plamo2_translate_lmstudio import PlamoTranslator
 
-result_en = en2ja(
-  "Please confirm the deployment window.",
-  top_p=0.9,
-  top_k=40,
-  timeout_sec=50,
-)
-result_ja = ja2en(
-  "最新のガイドラインに沿ってレビューを進めてください。",
-  temperature=0.15,
-)
+shared_translator = PlamoTranslator(model="mmnga/plamo-2-translate-gguf", timeout_sec=120)
 
-print(result_en)
-print(result_ja)
+def translate_notice(text: str) -> str:
+    return shared_translator.translate_ja_en("ja", text, temperature=0.05)
+
+def translate_summary(text: str) -> str:
+    return shared_translator.translate(text, src_lang="English", tgt_lang="Japanese", top_p=0.92)
 ```
 
+<!-- ---
 
+## 6. トラブルシューティングのヒント
 
-## **"reserved" が延々と出る**場合
-
-   * 典型原因：古いエンジン or **会話テンプレ混入**
-   * 手順で直す：
-
-     * **My Models → （対象モデル）→ ⚙ → Prompt Template を空**（カスタムにして全削除）
-     * **（任意）Stop sequences に `<|plamo:op|>` を追加**
-     * **Developer → Local Server → /v1/completions** を使う（/v1/chat/completions ではない）
-     * **Local Server の Show Logs** で **`arch: plamo2`** を確認（出なければ LM Studio 更新）
----
-
-## クイック検証（cURL 例：/v1/completions を使う）
-
-```bash
-curl http://localhost:1234/v1/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "mmnga/plamo-2-translate-gguf",
-    "prompt": "<|plamo:op|>dataset\ntranslation\n\n<|plamo:op|>input lang=English\nwhere are you from?\n<|plamo:op|>output lang=Japanese\n",
-    "temperature": 0,
-    "max_tokens": 128,
-    "stop": ["<|plamo:op|>"]
-  }'
-# -> どこ出身ですか？（など）
-```
-
-出力例：
-```
-{
-  "id": "(idが表示)",
-  "object": "text_completion",
-  "created": (UNIX時刻),
-  "model": "plamo-2-translate",
-  "choices": [
-    {
-      "index": 0,
-      "text": "どこ出身ですか？\n",
-      "logprobs": null,
-      "finish_reason": "stop"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 22,
-    "completion_tokens": 4,
-    "total_tokens": 26
-  },
-  "stats": {}
-}
-```
-
-
-<!-- 自分が理解してないので隠しておく
-
-## トラブルシューティング
-
-* **`requests.exceptions.ConnectionError`**
-
-  * **Developer → Local Server** が **ON** か、`http://localhost:1234/v1` へ到達できるか確認
-* **出力が空 or `reserved` 連発**
-
-  * **My Models → ⚙ → Prompt Template を空**、**新規チャット**、**/v1/completions**、**Stop 指定**を確認
-  * **Local Server → Show Logs** で **`arch: plamo2`** を確認。出ない場合は LM Studio 更新
-  * ライブラリは自動で 1 回だけパラメータを緩めて再試行します（`temperature/top_p/top_k`）
-* **応答が遅い**
-
-  * `timeout_sec` を延長／モデルを一度ウォームアップ
-  * 量子化を軽めに（Q4_K_S）-->
-
----
-
-<!-- ## ライセンス / モデル利用上の注意
-
-* 本ライブラリ：**MIT License**
-* モデル `plamo-2-translate` のライセンス・利用条件は **PFN の配布条件**に従ってください（商用条件などに注意）。
-  LM Studio および同梱コンポーネントのライセンスも各提供元の規約に従います。
+| 症状 | 考えられる原因 | 対処 |
+| ---- | ---- | ---- |
+| 返答が `reserved` ばかり | Prompt Template が有効 / Llama.cpp が古い | Prompt Template を空に、LM Studio を更新。必要に応じて `temperature` などを緩める |
+| `requests.exceptions.ConnectionError` | Local Server が無効 / ポート違い | LM Studio 設定やファイアウォールを確認 |
+| 応答が遅い | モデル初期化が未完了 / タイムアウト短すぎ | 1 度目のリクエストは時間がかかる場合あり。`timeout_sec` を延長 |
+| 同じ設定で毎回呼ぶのが面倒 | シナリオ2 で共有インスタンスを用意 | セッション再利用で高速化も期待 | -->
 
 
 
-## 免責事項（Disclaimer）
-
-本リポジトリが提供するのは **当方作成のオリジナル Python コードのみ**であり、**現状有姿（AS IS）**で提供されます。  
-明示黙示を問わず、**商品性・特定目的適合性・非侵害**を含むいかなる保証も行いません。
-
-- **利用者責任**：本ソフトウェアの使用・不使用・設定・更新・第三者ソフト（LM Studio / llama.cpp など）の変更や不具合、ならびに本ソフトが生成・取得・加工に関与した**翻訳結果（生成物）**の正確性・完全性・有用性・適法性について、**最終的な責任は利用者にあります**。  
-- **損害賠償の制限**：適用法で許される最大範囲において、当方は使用・使用不能・不具合・互換性問題・データ喪失・業務中断・利益喪失等から生じる**直接・間接・付随・特別・結果的損害**について**一切責任を負いません**。  
-- **非公式性**：本リポジトリは Preferred Networks, Inc.、LM Studio、llama.cpp の**非公式**ラッパーであり、いかなる提携・後援・保証関係もありません。各名称は**各権利者の商標**または登録商標です。  
-- **ライセンス遵守**：`plamo-2-translate` モデルの取得・実行・（必要に応じ）配布や、生成物の第三者提供・商用利用等には、**PLaMo コミュニティライセンス等の条件**が適用されます。**事前登録や表記義務などの遵守は利用者の責任**です。  
-- **環境依存・互換性**：OS/ドライバ/llama.cpp・LM Studio のバージョン、モデル量子化（GGUF など）、ネットワーク/権限設定により挙動は変わります。**将来の互換性は保証しません**（API・挙動は予告なく変更され得ます）。  
-- **輸出管理等**：輸出管理・制裁関連法令その他の適用法令の遵守は利用者の責任です。地域により使用が制限される場合があります。  
-- **法的助言ではありません**：本READMEの記載は**法的助言（Legal Advice）ではありません**。適用ライセンス・契約・法令の解釈や適法性判断は、必要に応じて**専門家に相談**のうえ、利用者の責任で行ってください。 -->
-
-## 免責・法的通知
+## 6. 参考情報とライセンス
 
 - 本リポジトリは **当方が作成したPythonコードのみ**を提供します。**モデル資産（重み・語彙・トークナイザ等）は同梱しません。**
 - コードのライセンスは **MIT License** です。**現状有姿（AS IS）** で提供し、商品性・特定目的適合性・非侵害など**一切の保証を行いません**。本コードの利用により生じたいかなる損害についても、**作者は責任を負いません**。
