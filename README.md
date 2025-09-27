@@ -23,7 +23,7 @@ pip install -e .
 ```
 
 `plamo2-translate-lmstudio` フォルダにJupyter Notebookを新規作成してご利用ください。  
-サンプルを `translate_example.ipynb` に示しています。
+サンプルを同梱の `example.ipynb` に示しています。
 
 
 
