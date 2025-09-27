@@ -1,8 +1,26 @@
 from __future__ import annotations
+
 import requests
-from typing import Optional
+from typing import Optional, Tuple
 
 PLAMO_STOP = "<|plamo:op|>"
+
+_JA_ALIASES = {"japanese", "ja", "jp"}
+_EN_ALIASES = {"english", "en"}
+
+
+def _resolve_lang_pair(text_lang: str) -> Tuple[str, str]:
+    """入力言語に応じて (src, tgt) のタプルを返す。"""
+
+    lang_normalized = text_lang.strip().lower()
+    if lang_normalized in _JA_ALIASES:
+        return "Japanese", "English"
+    if lang_normalized in _EN_ALIASES:
+        return "English", "Japanese"
+    raise ValueError(
+        "text_lang must be either 'Japanese'/'ja'/'jp' or 'English'/'en'. "
+        f"Got: {text_lang!r}"
+    )
 
 class PlamoTranslator:
     """
@@ -88,9 +106,34 @@ class PlamoTranslator:
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
     ) -> str:
-        """
-        “生プロンプト + stop=<|plamo:op|>” で plamo-2-translate を叩く。
-        必要に応じて 1 回だけパラメータを緩めてリトライ（reserved連発の簡易対策）。
+        """plamo-2-translate へ翻訳リクエストを送るメインメソッド。
+
+        Parameters
+        ----------
+        text:
+            翻訳したい文字列。
+        src_lang:
+            入力テキストの言語ラベル（例: ``"English"``）。
+        tgt_lang:
+            出力テキストの言語ラベル（例: ``"Japanese"``）。
+        temperature:
+            サンプリング温度。0.0 にすると決定論的に近づく。
+        max_tokens:
+            生成する最大トークン数。
+        top_p:
+            nucleus sampling の確率質量（0〜1）。``None`` の場合は API 既定値。
+        top_k:
+            考慮するトークン候補数の上限。``None`` で API 既定値。
+
+        Returns
+        -------
+        str
+            翻訳結果。
+
+        Notes
+        -----
+        API から "reserved" が多く返る等の異常時には、内部で 1 度だけ
+        ``temperature`` や ``top_p``/``top_k`` を緩めて再試行する。
         """
         prompt = self.build_prompt(text, src_lang, tgt_lang, blank_line_after_header=True)
         out = self._call_completions(
@@ -118,6 +161,10 @@ class PlamoTranslator:
 
     def ja2en(self, text: str, **gen_kw) -> str:
         return self.translate(text, "Japanese", "English", **gen_kw)
+
+    def translate_ja_en(self, text_lang: str, text: str, **gen_kw) -> str:
+        src, tgt = _resolve_lang_pair(text_lang)
+        return self.translate(text, src, tgt, **gen_kw)
 
 
 if __name__ == "__main__":
