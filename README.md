@@ -1,2 +1,2 @@
 # plamo2-translate-lmstudio
-lmstudio, plamo_2_translate, python
+LM Studio 経由で plamo-2-translate を使い英⇔日翻訳するためのpythonライブラリ
