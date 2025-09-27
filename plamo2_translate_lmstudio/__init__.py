@@ -9,7 +9,7 @@ from typing import Optional
 
 from .plamo_2_translate import PLAMO_STOP, PlamoTranslator
 
-__all__ = ["PlamoTranslator", "PLAMO_STOP", "translate", "translate_ja_en"]
+__all__ = ["PlamoTranslator", "PLAMO_STOP", "translate", "translate_ja_en", "en2ja", "ja2en"]
 
 
 def translate(
@@ -103,3 +103,59 @@ def translate_ja_en(
 		translator=translator,
 		**translator_kwargs,
 	)
+
+
+def _resolve_translator(
+	translator: Optional[PlamoTranslator] = None,
+	**translator_kwargs,
+) -> PlamoTranslator:
+	"""Return a translator instance, creating one when necessary."""
+
+	if translator is None:
+		translator = PlamoTranslator(**translator_kwargs)
+	return translator
+
+
+def en2ja(
+	text: str,
+	*,
+	translator: Optional[PlamoTranslator] = None,
+	**translator_kwargs,
+) -> str:
+	"""英語から日本語へ翻訳するためのライトウェイトヘルパー。
+
+	Parameters
+	----------
+	text:
+		翻訳したい英語の文字列。
+	translator:
+		使い回したい :class:`PlamoTranslator` インスタンス。未指定なら内部で生成する。
+	**translator_kwargs:
+		`PlamoTranslator` 生成時に渡す追加キーワード。 ``translator`` 指定時は無視される。
+	"""
+
+	resolved = _resolve_translator(translator, **translator_kwargs)
+	return resolved.en2ja(text)
+
+
+def ja2en(
+	text: str,
+	*,
+	translator: Optional[PlamoTranslator] = None,
+	**translator_kwargs,
+) -> str:
+	"""日本語から英語へ翻訳するためのライトウェイトヘルパー。
+
+	Parameters
+	----------
+	text:
+		翻訳したい日本語の文字列。
+	translator:
+		使い回したい :class:`PlamoTranslator` インスタンス。未指定なら内部で生成する。
+	**translator_kwargs:
+		`PlamoTranslator` 生成時に渡す追加キーワード。 ``translator`` 指定時は無視される。
+	"""
+
+	resolved = _resolve_translator(translator, **translator_kwargs)
+	return resolved.ja2en(text)
+
