@@ -53,8 +53,8 @@ def translate(
 
 
 def translate_ja_en(
-	text: str,
 	text_lang: str,
+	text: str,
 	*,
 	translator: Optional[PlamoTranslator] = None,
 	**translator_kwargs,
@@ -63,10 +63,10 @@ def translate_ja_en(
 
 	Parameters
 	----------
-	text:
-		翻訳したい文字列。
 	text_lang:
 		入力テキストの言語。 ``"Japanese"``/``"ja"``/``"jp"`` または ``"English"``/``"en"`` を指定。
+	text:
+		翻訳したい文字列。
 	translator:
 		既存の :class:`PlamoTranslator` インスタンス。
 	**translator_kwargs:
