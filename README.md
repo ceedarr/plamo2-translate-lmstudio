@@ -10,6 +10,7 @@ LM Studio の OpenAI 互換 API を利用して `plamo-2-translate` モデル（
 | LM Studio | **Developer → Local Server** を **ON**（既定: `http://localhost:1234/v1`） | `arch: plamo2` が表示される最新バージョンを推奨 |
 | モデル | **My Models → Add model** で `mmnga/plamo-2-translate-gguf` を追加。Prompt Template を空にする | 現状Q4_K_Sで実行確認済み、他plamo系モデルでも使えるかは未確認 |
 | Stop Sequence | 任意で `<\|plamo:op\|>` を UI 側にも登録 | [Hugging face plamo モデルカード](https://huggingface.co/pfnet/plamo-2-translate) `Usage` 準拠。本ライブラリは API リクエスト時に自動指定 |
+| llama.cpp ランタイム | **LM Studio を最新化**。Windows で **Vulkan llama.cpp**を更新 | **`reserved` 連発時に Vulkan 版を更新して改善**を確認（手元検証）。 |
 
 ### インストール・使用方法
 
