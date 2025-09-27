@@ -179,18 +179,6 @@ def translate_summary(text: str) -> str:
     return shared_translator.translate(text, src_lang="English", tgt_lang="Japanese", top_p=0.92)
 ```
 
-<!-- ---
-
-## 6. トラブルシューティングのヒント
-
-| 症状 | 考えられる原因 | 対処 |
-| ---- | ---- | ---- |
-| 返答が `reserved` ばかり | Prompt Template が有効 / Llama.cpp が古い | Prompt Template を空に、LM Studio を更新。必要に応じて `temperature` などを緩める |
-| `requests.exceptions.ConnectionError` | Local Server が無効 / ポート違い | LM Studio 設定やファイアウォールを確認 |
-| 応答が遅い | モデル初期化が未完了 / タイムアウト短すぎ | 1 度目のリクエストは時間がかかる場合あり。`timeout_sec` を延長 |
-| 同じ設定で毎回呼ぶのが面倒 | シナリオ2 で共有インスタンスを用意 | セッション再利用で高速化も期待 | -->
-
-
 
 ## 6. 参考情報とライセンス
 
