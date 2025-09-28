@@ -1,4 +1,4 @@
-# plamo2-translate-lmstudio
+# plamo2-translate-lmstudio-py
 
 LM Studio の OpenAI 互換 API を利用して `plamo-2-translate` モデル（GGUF）で英⇔日翻訳を行う Python モジュールです。
 
