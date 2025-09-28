@@ -37,7 +37,7 @@ class PlamoTranslator:
         self,
         base_url: str = "http://localhost:1234/v1",
         model: str = "mmnga/plamo-2-translate-gguf",
-        timeout_sec: int = 30,
+        timeout_sec: int = 10000,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
